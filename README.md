@@ -8,11 +8,14 @@ and an ability to sync the roles from a config to the database.
 
     composer require actengage/roles
 
-### Basic Example
+### Implementation
+
+To implement Roles, you just need to assign the `HasRoles` trait to the model
+receiving the roles.
 
     namespace App\User;
 
-    use Actenage\Roles\Role;
+    use Actenage\Roles\HasRoles;
     use Illuminate\Database\Eloquent\Model;
 
     class User extends Model {
@@ -21,33 +24,83 @@ and an ability to sync the roles from a config to the database.
 
     }
 
-    $role = Role::findByName('account_owner');
+### Gates & Policies
 
-    $user = User::findOrFail(1);
-    $user->grantRole($role);
+Roles are meant to be used directly within Laravel Gates and Policies.
+```
+Gate::define('sudo', function ($user, $model) {
+    return $user->hasRole(Role::findByName('account_owner'));
+});
+```
+```
+<?php
 
-    dd($user->hasRole($role)); // returns -> `true`
+namespace App\Policies;
 
-    $user->revokeRole($role);
+use App\User;
+use App\Post;
 
-    dd($user->hasRole($role)); // returns -> `false`
+class PostPolicy
+{
+    /**
+     * If the user an account owner, the policy should always pass.
+     *
+     * @param  \App\User  $user
+     * @param  \App\Post  $post
+     * @return bool
+     */
+    public function before($user, $ability)
+    {
+        // isAccountOwner() is a helper function provided by the HasRoles trait.
+        if ($user->isAccountOwner()) {
+            return true;
+        }
+    }
+
+    /**
+     * Determine if the given post can be updated by the user.
+     *
+     * @param  \App\User  $user
+     * @param  \App\Post  $post
+     * @return bool
+     */
+    public function update(User $user, Post $post)
+    {
+        return $user->id === $post->user_id;
+    }
+}
+```
+### Basic Example
+```
+$role = Role::findByName('account_owner');
+
+$user = User::findOrFail(1);
+$user->grantRole($role);
+
+dd($user->hasRole($role)); // returns -> `true`
+
+$user->revokeRole($role);
+
+dd($user->hasRole($role)); // returns -> `false`
+```
 
 ### Parent/Child Roles
+```
+$role = Role::findByName('account_owner');
 
-    $role = Role::findByName('account_owner');
+$childRole = Role::create([
+    'name' => 'Child Role',
+    'parent_id' => $role->id
+]);
 
-    $childRole = Role::create([
-        'name' => 'Child Role',
-        'parent_id' => $role->id
-    ]);
+$user = User::findOrFail(1);
+$user->grantRole($childRole);
 
-    $user = User::findOrFail(1);
-    $user->grantRole($childRole);
+dd($user->hasRole($role)); // returns -> `true`
+dd($user->hasRole($childRole)); // returns -> `true`
 
-    dd($user->hasRole($role)); // returns -> `true`
-    dd($user->hasRole($childRole)); // returns -> `true`
+$user->revokeRole($childRole);
 
-    $user->revokeRole($childRole);
-
-    dd($user->hasRole($role)); // returns -> `true`
-    dd($user->hasRole($childRole)); // returns -> `false`
+dd($user->hasRole($role)); // returns -> `true`
+dd($user->hasRole($childRole)); // returns -> `false`
+```
