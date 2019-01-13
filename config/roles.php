@@ -4,6 +4,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Super Admin
+    |--------------------------------------------------------------------------
+    |
+    | The slug of the role that represents the "super admin", the highest level
+    | of permission in the app.
+    |
+    */
+
+    'super_admin' => 'account_owner',
+
+    /*
+    |--------------------------------------------------------------------------
     | List of Available Roles
     |--------------------------------------------------------------------------
     |
@@ -24,5 +36,5 @@ return [
         [2, null, 'Admin', 'Can add, edit, and delete content.'],
         [3, null, 'User', 'Can login and see restricted content.']
     ]
-    
+
 ];

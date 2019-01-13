@@ -46,13 +46,14 @@ class PostPolicy
      * If the user an account owner, the policy should always pass.
      *
      * @param  \App\User  $user
-     * @param  \App\Post  $post
+     * @param  \App\Post  $ability
      * @return bool
      */
     public function before($user, $ability)
     {
-        // isAccountOwner() is a helper function provided by the HasRoles trait.
-        if ($user->isAccountOwner()) {
+        // isSuperAdmin() is a helper function provided by the HasRoles trait.
+        // Which is a shortcut to: $user->hasRole(Role::findByName('account_owner'));
+        if ($user->isSuperAdmin()) {
             return true;
         }
     }

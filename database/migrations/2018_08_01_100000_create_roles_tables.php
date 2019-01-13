@@ -30,6 +30,7 @@ class CreateRolesTables extends Migration
             $table->integer('role_id')->unsigned();
             $table->foreign('role_id')->references('id')->on('roles')->onDelete('cascade')->onUpdate('cascade');
             $table->morphs('roleable');
+			$table->timestamps();
 		});
     }
 
@@ -40,7 +41,7 @@ class CreateRolesTables extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('roleable');
+        Schema::dropIfExists('roleables');
 		Schema::dropIfExists('roles');
     }
 }

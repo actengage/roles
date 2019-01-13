@@ -15,8 +15,8 @@ trait HasRoles {
         return $this->morphToMany(Role::class, 'roleable');
     }
 
-    public function isAccountOwner() {
-        return $this->roles()->get()->contains(Role::findByName('account_owner'));
+    public function isSuperAdmin() {
+        return $this->roles()->get()->contains(Role::findByName(config('roles.super_admin', 'account_owner')));
     }
 
     public function hasRole($role)
@@ -25,10 +25,15 @@ trait HasRoles {
             $role = Role::findByName($role);
         }
 
-        return $this->roles()->get()->contains($role) || $this->isAccountOwner();
+        return $this->roles()->get()->contains($role) || $this->isSuperAdmin();
     }
 
     public function hasRoles($roles)
+    {
+        return $this->hasOneRole($roles);
+    }
+
+    public function hasAllRoles($roles)
     {
         foreach($roles as $role) {
             if(!$this->hasRole($role)) {
@@ -39,21 +44,40 @@ trait HasRoles {
         return true;
     }
 
-    public function grantRole(Role $role, $expires = null)
+    public function hasOneRole($roles)
     {
+        foreach($roles as $role) {
+            if($this->hasRole($role)) {
+                return true;
+            }
+        }
+
+        return true;
+    }
+
+    public function syncRoles($roles)
+    {
+        $this->revokeAllRoles();
+        $this->grantRoles($roles);
+    }
+
+    public function grantRole($role)
+    {
+        if(!$role instanceof Role) {
+            $role = Role::findByName($role);
+        }
+
         do {
             if(!$this->hasRole($role)) {
-                $this->roles()->attach($role, [
-                    //'expires_at' => $expires
-                ]);
+                $this->roles()->attach($role);
             }
         } while($role = $role->parent);
     }
 
-    public function grantRoles($roles, $expires = null)
+    public function grantRoles($roles)
     {
         foreach($roles as $role) {
-            $this->grantRole($role, $expires);
+            $this->grantRole($role);
         }
     }
 
