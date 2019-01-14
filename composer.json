@@ -1,6 +1,5 @@
 {
     "name": "actengage/roles",
-    "version": "0.1.0",
     "description": "A simple role management package for Laravel.",
     "keywords": ["user", "permissions", "roles", "management"],
     "license": "MIT",
@@ -13,8 +12,7 @@
     "require": {
         "php": ">=7.1",
         "laravel/framework": "^5.5",
-        "fzaninotto/faker": "^1.8",
-        "actengage/roles": "^0.1.0"
+        "fzaninotto/faker": "^1.8"
     },
     "require-dev": {
         "orchestra/testbench": "~3.6",
