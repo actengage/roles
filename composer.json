@@ -13,7 +13,8 @@
     "require": {
         "php": ">=7.1",
         "laravel/framework": "^5.5",
-        "fzaninotto/faker": "^1.8"
+        "fzaninotto/faker": "^1.8",
+        "actengage/roles": "^0.1.0"
     },
     "require-dev": {
         "orchestra/testbench": "~3.6",
