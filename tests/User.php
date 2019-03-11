@@ -2,12 +2,12 @@
 
 namespace Tests;
 
-use Actengage\Roles\HasRoles;
+use Actengage\Roles\Roleable;
 use Illuminate\Foundation\Auth\User as Model;
 
 class User extends Model
 {
-    use HasRoles;
+    use Roleable;
 
     protected $table = 'users';
 

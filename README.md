@@ -1,7 +1,7 @@
 # Roles
 
 A simple package for assigning many-to-many "roles" to Eloquent models. This
-packages provides the migrations, a config file, a Role model, a HasRoles trait,
+packages provides the migrations, a config file, a Role model, a Roleable trait,
 and an ability to sync the roles from a config to the database.
 
 ### Installation
@@ -10,17 +10,17 @@ and an ability to sync the roles from a config to the database.
 
 ### Implementation
 
-To implement Roles, you just need to assign the `HasRoles` trait to the model
+To implement Roles, you just need to assign the `Roleable` trait to the model
 receiving the roles.
 
     namespace App\User;
 
-    use Actenage\Roles\HasRoles;
+    use Actenage\Roles\Roleable;
     use Illuminate\Database\Eloquent\Model;
 
     class User extends Model {
 
-        use HasRoles;
+        use Roleable;
 
     }
 
@@ -51,7 +51,7 @@ class PostPolicy
      */
     public function before($user, $ability)
     {
-        // isSuperAdmin() is a helper function provided by the HasRoles trait.
+        // isSuperAdmin() is a helper function provided by the Roleable trait.
         // Which is a shortcut to: $user->hasRole(Role::findByName('account_owner'));
         if ($user->isSuperAdmin()) {
             return true;
