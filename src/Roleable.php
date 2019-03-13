@@ -97,10 +97,10 @@ trait Roleable {
     public function grantRole($role)
     {
         if(!$role instanceof Role) {
-            $test = $role;
+            $name = $role;
 
             if(!$role = Role::findByName($role)) {
-                throw new InvalidArgumentException('"'.$role.'" is not a valid role');
+                throw new InvalidArgumentException('"'.$name.'" is not a valid role');
             }
         }
         
