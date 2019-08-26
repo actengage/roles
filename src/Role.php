@@ -2,16 +2,32 @@
 
 namespace Actengage\Roles;
 
+use Actengage\Sluggable\Sluggable;
 use Illuminate\Database\Eloquent\Model;
 
 class Role extends Model {
 
+	use Sluggable;
+	
 	protected $fillable = [
 		'parent_id',
         'name',
         'description',
 		'order'
-    ];
+	];
+
+    public function scopeTest($query)
+    {
+		dd($query);
+
+		$query->whereRoleableType(User::class);
+		$query->whereRoleableId(auth()->user()->id);
+	}
+	
+	public function getSlugQualifierAttributeName(): string
+	{
+		return 'name';
+	}
 
 	public function parent()
 	{
@@ -21,18 +37,6 @@ class Role extends Model {
 	public function children()
 	{
 		return $this->hasMany(Role::class);
-	}
-
-	public function getSlug()
-	{
-		$role = $this;
-		$chain = [];
-
-		do {
-			$chain[] = snake_case($role->name);
-		} while($role = $role->parent);
-
-		return implode('.', array_reverse($chain));
 	}
 
 	public function reorder()
@@ -80,13 +84,36 @@ class Role extends Model {
 		return $query->get();
 	}
 
-    public static function findByName($name)
+    /**
+     * Get the slug delimiting string.
+     *
+     * @return string
+     */
+    public function getSlugDelimiter(): string
     {
-		return Role::where(function($query) use ($name) {
-			$query->whereName($name);
-			$query->orWhere('slug', '=', $name);
-		})->first();
+        return '_';
     }
+
+    /**
+     * Create a new Eloquent query builder for the model.
+     *
+     * @param  \Illuminate\Database\Query\Builder  $query
+     * @return \Illuminate\Database\Eloquent\Builder|static
+     */
+    public function newEloquentBuilder($query)
+    {
+        return new RoleQueryBuilder($query);
+	}
+	
+	public static function superAdmin()
+	{
+		return static::findOrFail(config('roles.super_admin'));
+	}
+	
+	public static function admin()
+	{
+		return static::findOrFail(config('roles.admin'));
+	}
 
 	public static function boot()
 	{
@@ -100,8 +127,6 @@ class Role extends Model {
 	     */
 	    static::saving(function(Role $role)
 	    {
-	        $role->slug = $role->getSlug();
-
 			if(!$role->description) {
 				$role->description = $role->name;
 			}

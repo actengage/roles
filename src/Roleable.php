@@ -2,63 +2,73 @@
 
 namespace Actengage\Roles;
 
-use Exception;
-use Carbon\Carbon;
-use Actengage\Roles;
-use Illuminate\Support\Str;
-use InvalidArgumentException;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 
 trait Roleable {
 
-    public static function bootRoleable()
+    public function getRoleClassName(): string
     {
-        static::saved(function($model) {
-            $ids = collect($model->getRolesFromRequest(request()))
-                ->map(function($role) {
-                    if(is_numeric($role) || is_string($role)) {
-                        return $role;
-                    }                   
+        return Role::class;
+    }
 
-                    return ((object) $role)->id;
-                });
-                
-            if($ids->count()) {
-                $model->grantRoles($ids->all());
+    public function getRoleablePivotClassName(): string
+    {
+        return Pivot::class;
+    }
+
+    public function getRolesInputName(): string
+    {   
+        return 'roles';
+    }
+
+    public function getRolesFromRequest(Request $request): Collection
+    {   
+        return collect($request->input($this->getRolesInputName()));
+    }
+    
+    public function transformRolesFromRequest(Request $request): Collection
+    {
+        return collect($this->getRolesFromRequest($request))->mapWithKeys(function($value, $key) {
+            if(is_array($value)) {
+                dd($value, $key);
+
+                return $value;
             }
-            else {
-                $model->revokeRoles();
-            }
+
+            return [$this->transformRoleModel($value)->getKey() => $value];
         });
     }
 
-    public function getRolesFromRequest($request)
-    {   
-        return $request->roles;
-    }
-
-    public function roles()
+    public function shouldSyncRolesOnSaved(Request $request): bool
     {
-        return $this->morphToMany(Role::class, 'roleable');
-    }
-
-    public function superAdminRole()
-    {
-        return Role::findByName(config('roles.super_admin', 'account_owner'));
+        return $request->has($this->getRolesInputName());
     }
 
     public function isSuperAdmin(): bool
     {
-        return $this->roles()->get()->contains($this->superAdminRole());
+        return $this->roles->contains($this->superAdminRole());
+    }
+
+    public function superAdminRole(): Model
+    {
+        return $this->getRoleClassName()::findOrFail(config('roles.super_admin', 'super_admin'));
+    }
+    
+    public function roles(): Relation
+    {
+        return $this->morphToMany($this->getRoleClassName(), 'roleable')->using($this->getRoleablePivotClassName());
     }
 
     public function hasRole($role): bool
     {
         if(!$role instanceof Role) {
-            $role = Role::findByName($role);
+            $role = $this->getRoleClassName()::find($role);
         }
 
-        return $this->isSuperAdmin() || $this->roles()->get()->contains($role);
+        return $this->isSuperAdmin() || $this->roles->contains($role);
     }
 
     public function hasRoles($roles): bool
@@ -88,56 +98,89 @@ trait Roleable {
         return true;
     }
 
-    public function syncRoles($roles)
+    public function syncRoles($roles, ?callable $fn = null): self
     {
-        $this->revokeAllRoles();
-        $this->grantRoles($roles);
+        return $this->revokeAllRoles()->grantRoles($roles, $fn);
     }
 
-    public function grantRole($role)
+    public function grantRole($role, ?callable $fn = null): self
     {
         if(!$role instanceof Role) {
-            $name = $role;
-
-            if(!$role = Role::findByName($role)) {
-                throw new InvalidArgumentException('"'.$name.'" is not a valid role');
-            }
+            $role = $this->getRoleClassName()::findOrFail($role);
         }
-        
+          
         do {
             if(!$this->hasRole($role)) {
-                $this->roles()->attach($role);
+                $this->roles()->attach($role, $fn ? Closure::call($this, $role) : []);
             }
         } while($role = $role->parent);
+
+        return $this->load('roles');
     }
 
-    public function grantRoles($roles)
+    public function grantRoles($roles, ?callable $fn = null): self
     {
         foreach($roles as $role) {
-            $this->grantRole($role);
+            $this->grantRole($role, $fn);
         }
+
+        return $this;
     }
 
-    public function revokeRole(Role $role)
+    public function revokeRole(Role $role): self
     {
         $this->roles()->detach($role);
+
+        return $this->load('roles');
     }
 
-    public function revokeRoles($roles = null)
+    public function revokeRoles($roles = null): self
     {
         if($roles && count($roles)) {
             foreach($roles as $role) {
-                $this->roles()->detach($role);
+                $this->revokeRole($role);
             }
         }
         else {
             $this->revokeAllRoles();
         }
+
+        return $this;
     }
 
-    public function revokeAllRoles()
+    public function revokeAllRoles(): self
     {
         $this->roles()->detach();
+
+        return $this->load('roles');
     }
 
+    public function transformRoleModel($value): Model
+    {
+        $class = $this->getRoleClassName();
+        dd($class);
+
+        if(is_numeric($value) || is_string($value)) {
+            return $class::findOrFail($value);
+        }
+
+        if(is_array($value)) {
+            return $class::make($value);
+        }
+
+        if(is_a($value, $class)) {
+            return $value;
+        }
+
+        throw new InvalidArgumentException('"'.$value.'" is not an instance of '.$class.'.');
+    }
+    
+    public static function bootRoleable()
+    {
+        static::saved(function($model) {
+            if($model->shouldSyncRolesOnSaved(request())) {
+                $model->roles()->sync($model->transformRolesFromRequest(request()));                
+            }
+        });
+    }
 }

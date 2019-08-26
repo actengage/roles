@@ -12,7 +12,7 @@ return [
     |
     */
 
-    'super_admin' => 'account_owner',
+    'super_admin' => 'super_admin',
 
     /*
     |--------------------------------------------------------------------------
@@ -32,7 +32,7 @@ return [
     */
 
     'list' => [
-        [1, null, 'Account Owner', 'Can perform all actions.'],
+        [1, null, 'Super Admin', 'Can perform all actions.'],
         [2, null, 'Admin', 'Can add, edit, and delete content.'],
         [3, null, 'User', 'Can login and see restricted content.']
     ]
