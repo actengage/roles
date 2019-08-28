@@ -2,6 +2,8 @@
 
 namespace Actengage\Roles;
 
+use Closure;
+use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Database\Eloquent\Model;
@@ -33,8 +35,6 @@ trait Roleable {
     {
         return collect($this->getRolesFromRequest($request))->mapWithKeys(function($value, $key) {
             if(is_array($value)) {
-                dd($value, $key);
-
                 return $value;
             }
 
@@ -98,9 +98,36 @@ trait Roleable {
         return true;
     }
 
-    public function syncRoles($roles, ?callable $fn = null): self
+    public function syncRoles($roles, $pivotData = [], bool $detach = true): self
     {
-        return $this->revokeAllRoles()->grantRoles($roles, $fn);
+        if(is_bool($pivotData)) {
+            $detach = $pivotData;
+            
+            $pivotData = [];
+        }
+        else if($pivotData instanceof Arrayable) {
+            $pivotData = $pivotData->toArray();
+        }
+
+        $roles = collect($roles)
+            ->mapWithKeys(function($role) use ($pivotData) {
+                if(!$role instanceof Role) {
+                    $role = $this->getRoleClassName()::findOrFail($role);
+                }
+
+                $pivotData = is_callable($pivotData) ? call_user_func($pivotData, $role) : (array) $pivotData;
+
+                return ["$role->id" => $pivotData];
+            });
+
+        $this->roles()->sync($roles, $detach);
+
+        return $this;
+    }
+
+    public function syncRolesWithoutDetaching($roles, $pivotData = []): self
+    {
+        return $this->syncRoles($roles, $pivotData, false);
     }
 
     public function grantRole($role, ?callable $fn = null): self
@@ -111,11 +138,11 @@ trait Roleable {
           
         do {
             if(!$this->hasRole($role)) {
-                $this->roles()->attach($role, $fn ? Closure::call($this, $role) : []);
+                $this->roles()->attach($role, $fn ? call_user_func($fn, $role) : []);
             }
         } while($role = $role->parent);
 
-        return $this->load('roles');
+        return $this;
     }
 
     public function grantRoles($roles, ?callable $fn = null): self
@@ -131,7 +158,7 @@ trait Roleable {
     {
         $this->roles()->detach($role);
 
-        return $this->load('roles');
+        return $this;
     }
 
     public function revokeRoles($roles = null): self
@@ -152,13 +179,12 @@ trait Roleable {
     {
         $this->roles()->detach();
 
-        return $this->load('roles');
+        return $this;
     }
 
     public function transformRoleModel($value): Model
     {
         $class = $this->getRoleClassName();
-        dd($class);
 
         if(is_numeric($value) || is_string($value)) {
             return $class::findOrFail($value);
@@ -179,7 +205,7 @@ trait Roleable {
     {
         static::saved(function($model) {
             if($model->shouldSyncRolesOnSaved(request())) {
-                $model->roles()->sync($model->transformRolesFromRequest(request()));                
+                $model->syncRoles($model->transformRolesFromRequest(request()));   
             }
         });
     }
