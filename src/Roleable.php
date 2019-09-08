@@ -110,14 +110,14 @@ trait Roleable {
         }
 
         $roles = collect($roles)
-            ->mapWithKeys(function($role) use ($pivotData) {
+            ->mapWithKeys(function($role, $key) use ($pivotData) {
                 if(!$role instanceof Role) {
                     $role = $this->getRoleClassName()::findOrFail($role);
                 }
 
                 $pivotData = is_callable($pivotData) ? call_user_func($pivotData, $role) : (array) $pivotData;
 
-                return ["$role->id" => $pivotData];
+                return ["{$role->getKey()}" => $pivotData];
             });
 
         $this->roles()->sync($roles, $detach);
