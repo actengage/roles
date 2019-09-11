@@ -3,10 +3,10 @@
 namespace Actengage\Roles;
 
 use Closure;
-use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Relations\Relation;
 
 trait Roleable {
@@ -33,13 +33,14 @@ trait Roleable {
     
     public function transformRolesFromRequest(Request $request): Collection
     {
-        return collect($this->getRolesFromRequest($request))->mapWithKeys(function($value, $key) {
-            if(is_array($value)) {
-                return $value;
-            }
+        return collect($this->getRolesFromRequest($request))
+            ->mapWithKeys(function($value, $key) {
+                if(is_array($value)) {
+                    return $value;
+                }
 
-            return [$this->transformRoleModel($value)->getKey() => $value];
-        });
+                return [$this->transformRoleModel($value)->getKey() => $value];
+            });
     }
 
     public function shouldSyncRolesOnSaved(Request $request): bool
@@ -112,7 +113,7 @@ trait Roleable {
         $roles = collect($roles)
             ->mapWithKeys(function($role, $key) use ($pivotData) {
                 if(!$role instanceof Role) {
-                    $role = $this->getRoleClassName()::findOrFail($role);
+                    $role = $this->transformRoleModel($role);
                 }
 
                 $pivotData = is_callable($pivotData) ? call_user_func($pivotData, $role) : (array) $pivotData;
@@ -191,7 +192,7 @@ trait Roleable {
         }
 
         if(is_array($value)) {
-            return $class::make($value);
+            return $class::query()->firstOrFail($value);
         }
 
         if(is_a($value, $class)) {

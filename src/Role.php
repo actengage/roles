@@ -16,14 +16,6 @@ class Role extends Model {
 		'order'
 	];
 
-    public function scopeTest($query)
-    {
-		dd($query);
-
-		$query->whereRoleableType(User::class);
-		$query->whereRoleableId(auth()->user()->id);
-	}
-	
 	public function getSlugQualifierAttributeName(): string
 	{
 		return 'name';
@@ -39,6 +31,12 @@ class Role extends Model {
 		return $this->hasMany(Role::class);
 	}
 
+    public function scopeRoleable($query, Model $model)
+    {
+		$query->whereRoleableType(get_class($model));
+		$query->whereRoleableId($model->getKey());
+	}
+	
 	public function reorder()
 	{
 		$this->reorderBranch($this->parent_id);
