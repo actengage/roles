@@ -2,12 +2,12 @@
 
 namespace Actengage\Roles;
 
-use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use InvalidArgumentException;
 
 trait Roleable {
 
@@ -60,27 +60,39 @@ trait Roleable {
     
     public function roles(): Relation
     {
-        return $this->morphToMany($this->getRoleClassName(), 'roleable')->using($this->getRoleablePivotClassName());
+        return $this->morphToMany($this->getRoleClassName(), 'roleable')
+            ->using($this->getRoleablePivotClassName())
+            ->withPivot('team_id');
     }
 
-    public function hasRole($role): bool
+    public function hasRole($role, ?callable $fn = null): bool
     {
         if(!$role instanceof Role) {
             $role = $this->getRoleClassName()::find($role);
         }
 
-        return $this->isSuperAdmin() || $this->roles->contains($role);
+        if($this->isSuperAdmin()) {
+            return true;
+        }
+
+        $query = $this->roles();
+
+        if(is_callable($fn)) {
+            $fn($query);
+        }
+
+        return $query->get()->contains($role);
     }
 
-    public function hasRoles($roles): bool
+    public function hasRoles($roles, ?callable $fn = null): bool
     {
-        return $this->hasOneRole($roles);
+        return $this->hasOneRole($roles, $fn);
     }
 
-    public function hasAllRoles($roles): bool
+    public function hasAllRoles($roles, ?callable $fn = null): bool
     {
         foreach($roles as $role) {
-            if(!$this->hasRole($role)) {
+            if(!$this->hasRole($role, $fn)) {
                 return false;
             }
         }
@@ -88,10 +100,10 @@ trait Roleable {
         return true;
     }
 
-    public function hasOneRole($roles): bool
+    public function hasOneRole($roles, ?callable $fn = null): bool
     {
         foreach($roles as $role) {
-            if($this->hasRole($role)) {
+            if($this->hasRole($role, $fn)) {
                 return true;
             }
         }
